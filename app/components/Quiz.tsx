@@ -84,9 +84,30 @@ function checkIdentification(user: string, correct: string | string[]): boolean 
   return answers.some((a) => normalizeAnswer(a) === userNorm);
 }
 
+const ATTEMPT_KEY = "quiz_attempts";
+
+function getAttemptKey(topic: string, section: string, name: string): string {
+  const normalized = (name || "anonymous").trim().toLowerCase().replace(/\s+/g, "_");
+  return `${ATTEMPT_KEY}_${topic}_${section}_${normalized}`;
+}
+
+function getAttemptCount(topic: string, section: string, name: string): number {
+  if (typeof window === "undefined") return 0;
+  const key = getAttemptKey(topic, section, name);
+  return parseInt(localStorage.getItem(key) || "0", 10);
+}
+
+function incrementAttemptCount(topic: string, section: string, name: string): number {
+  const key = getAttemptKey(topic, section, name);
+  const next = getAttemptCount(topic, section, name) + 1;
+  localStorage.setItem(key, String(next));
+  return next;
+}
+
 interface QuizResults {
   studentName: string;
   section: string;
+  attempts: number;
   mcScore: number;
   idScore: number;
   enumScore: number;
@@ -136,6 +157,14 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
   }, [studentName, getUnansweredPages]);
 
   const gradeQuiz = useCallback(() => {
+    const name = studentName.trim();
+    const currentAttempts = getAttemptCount(topic, section, name);
+    if (currentAttempts >= 2) {
+      setSubmitError("You've used all 2 attempts for this quiz. You cannot retake it.");
+      setCurrentPage(0);
+      return;
+    }
+
     let mcScore = 0;
     for (const q of multipleChoiceQuestions) {
       if (normalizeAnswer(mcAnswers[q.id] || "") === normalizeAnswer(q.correct)) {
@@ -166,9 +195,12 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
     const totalScore = mcScore + idScore + enumPoints;
     const percentage = Math.round((totalScore / maxScore) * 100);
 
+    const attempts = incrementAttemptCount(topic, section, name);
+
     setResults({
-      studentName: studentName.trim(),
+      studentName: name,
       section,
+      attempts,
       mcScore,
       idScore,
       enumScore: enumPoints,
@@ -177,18 +209,18 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
       percentage,
     });
     setSubmitted(true);
-  }, [studentName, section, mcAnswers, idAnswers, enumAnswers, multipleChoiceQuestions, identificationQuestions, enumerationQuestions, programmingSection]);
+  }, [topic, studentName, section, mcAnswers, idAnswers, enumAnswers, multipleChoiceQuestions, identificationQuestions, enumerationQuestions, programmingSection]);
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === "hidden" && !submitted && isComplete()) {
+      if (document.visibilityState === "hidden" && !submitted) {
         setTabLeft(true);
         gradeQuiz();
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [submitted, gradeQuiz, isComplete]);
+  }, [submitted, gradeQuiz]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,7 +257,8 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
             </h1>
             <p className="text-center text-slate-400 mb-2">{quizTitle}</p>
             <p className="text-center text-cyan-300 font-semibold mb-2">Answered by: {results.studentName}</p>
-            <p className="text-center text-slate-400 mb-8">Section: {results.section}</p>
+            <p className="text-center text-slate-400 mb-2">Section: {results.section}</p>
+            <p className="text-center text-slate-500 text-sm mb-8">Attempt {results.attempts} of 2</p>
 
             <div className="grid gap-4 mb-8">
               <div className="flex justify-between items-center p-4 rounded-xl bg-slate-700/50">
@@ -257,28 +290,36 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
               <p className="text-2xl font-semibold mt-2 text-cyan-300">{results.percentage}%</p>
             </div>
 
-            <div className="flex gap-4 mt-8">
-              <Link
-                href="/"
-                className="flex-1 py-3 px-6 rounded-xl bg-slate-600 hover:bg-slate-500 text-white font-semibold text-center transition-colors"
-              >
-                ← Back to Home
-              </Link>
-              <button
-                onClick={() => {
-                  setSubmitted(false);
-                  setResults(null);
-                  setStudentName("");
-                  setMcAnswers({});
-                  setIdAnswers({});
-                  setEnumAnswers({});
-                  setTabLeft(false);
-                  setCurrentPage(0);
-                }}
-                className="flex-1 py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors"
-              >
-                Retake Quiz
-              </button>
+            <div className="mt-8 space-y-4">
+              {results.attempts >= 2 && (
+                <div className="p-4 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-200 text-center">
+                  <p className="font-semibold">You've used all 2 attempts. You cannot retake this quiz.</p>
+                </div>
+              )}
+              <div className="flex gap-4">
+                <Link
+                  href="/"
+                  className="flex-1 py-3 px-6 rounded-xl bg-slate-600 hover:bg-slate-500 text-white font-semibold text-center transition-colors"
+                >
+                  ← Back to Home
+                </Link>
+                {results.attempts < 2 && (
+                  <button
+                    onClick={() => {
+                      setSubmitted(false);
+                      setResults(null);
+                      setMcAnswers({});
+                      setIdAnswers({});
+                      setEnumAnswers({});
+                      setTabLeft(false);
+                      setCurrentPage(0);
+                    }}
+                    className="flex-1 py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors"
+                  >
+                    Retake Quiz
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
