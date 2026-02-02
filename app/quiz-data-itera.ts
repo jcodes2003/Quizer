@@ -49,7 +49,7 @@ export const iteraIdentification: IdentificationQuestion[] = [
 export const iteraEnumeration: EnumerationQuestion[] = [
   {
     id: "itera-enum1",
-    question: "Enumerate five (5) examples of ICT services that require an internet connection.",
+    question: "Enumerate five (5) examples of ICT service that require an internet connection.",
     correct: ["Sending emails", "Google Classroom", "Zoom", "Teams", "Cloud storage", "Google Drive", "Social media"],
   },
   {
