@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import supabase from "../supabase-client";
 import type {
   MultipleChoiceQuestion,
   IdentificationQuestion,
@@ -191,7 +192,7 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
 
     const maxScore = programmingSection
       ? multipleChoiceQuestions.length + identificationQuestions.length
-      : 20 + 20 + 3;
+      : multipleChoiceQuestions.length + identificationQuestions.length + (enumerationQuestions?.length ?? 0);
     const totalScore = mcScore + idScore + enumPoints;
     const percentage = Math.round((totalScore / maxScore) * 100);
 
@@ -209,6 +210,19 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
       percentage,
     });
     setSubmitted(true);
+
+    // Save score to Supabase student_quiz table
+    supabase
+      .from("student_quiz")
+      .insert({
+        student_name: name,
+        score: totalScore,
+        section,
+        subject: topic,
+      })
+      .then(({ error }) => {
+        if (error) console.error("Failed to save quiz score:", error);
+      });
   }, [topic, studentName, section, mcAnswers, idAnswers, enumAnswers, multipleChoiceQuestions, identificationQuestions, enumerationQuestions, programmingSection]);
 
   useEffect(() => {
@@ -277,7 +291,7 @@ export default function Quiz({ topic, section, quizTitle, quizData }: QuizProps)
               ) : (
                 <div className="flex justify-between items-center p-4 rounded-xl bg-slate-700/50">
                   <span className="text-slate-300">Part III: Enumeration</span>
-                  <span className="font-bold text-emerald-400">{results.enumScore} / 3</span>
+                  <span className="font-bold text-emerald-400">{results.enumScore} / {enumerationQuestions?.length ?? 0}</span>
                 </div>
               )}
             </div>
