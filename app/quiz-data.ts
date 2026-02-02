@@ -200,5 +200,10 @@ export const QUIZ_BY_TOPIC: Record<QuizTopic, QuizData | null> = {
     identification: cp2Identification,
     programming: cp2Programming,
   },
-  itera: null,
-};
+  itera: {
+    title: "Living in IT Era",
+    multipleChoice: iteraMultipleChoice,
+    identification: iteraIdentification,
+    enumeration: iteraEnumeration,
+  },
+};  
